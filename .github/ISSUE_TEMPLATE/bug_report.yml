@@ -1,0 +1,131 @@
+name: Bug report
+description: Something in the chart, the init script or the firewall policy does not behave as documented
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file this.
+
+        **Before you paste anything:** scrub private keys, peer public keys and
+        real internal addresses from logs and configs. Never paste the contents
+        of `wg0.conf` — it contains the server private key.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I replaced the example addresses in `values.yaml` with ones valid for my network
+          required: true
+        - label: I updated `podAnnotations` to match `networks.macvlan.*` (they are two separate copies)
+          required: true
+        - label: I waited for the `apt` phase to finish — first boot legitimately takes several minutes
+          required: true
+        - label: I checked `/etc/wireguard/config/init.log` inside the pod
+          required: true
+        - label: I redacted keys and real addresses from everything below
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. helm install wirefort ./wg-ufw -f my-values.yaml
+        2. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - Chart rendering / templating
+        - Pod startup (init.sh, apt, package install)
+        - WireGuard install (wg-install.sh, BoringTun)
+        - UFW rules / routing / NAT
+        - Peer add or revoke not applying (wgui.path reload)
+        - wireguard-ui container or web interface
+        - macvlan / Multus networking
+        - NFS / persistence
+        - Documentation
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: k8s
+    attributes:
+      label: Kubernetes distribution and version
+      placeholder: "e.g. k3s v1.30.2, RKE2, OpenShift 4.15, kubeadm 1.29"
+    validations:
+      required: true
+
+  - type: input
+    id: cni
+    attributes:
+      label: Primary CNI and Multus version
+      placeholder: "e.g. Calico 3.27 + Multus 4.0.2"
+    validations:
+      required: true
+
+  - type: input
+    id: helm
+    attributes:
+      label: Helm version
+      placeholder: "helm version --short"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wg-mode
+    attributes:
+      label: WireGuard mode
+      description: Did the kernel module load, or did it fall back to BoringTun?
+      options:
+        - Kernel module
+        - BoringTun (userspace)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: values
+    attributes:
+      label: Your values (redacted)
+      description: The keys you changed from the defaults. Replace real addresses with placeholders.
+      render: yaml
+
+  - type: textarea
+    id: initlog
+    attributes:
+      label: Relevant part of init.log
+      description: |
+        `kubectl -n <ns> exec <pod> -c wg-debianpodsysd -- cat /etc/wireguard/config/init.log`
+      render: shell
+
+  - type: textarea
+    id: ufw
+    attributes:
+      label: ufw status numbered
+      description: |
+        `kubectl -n <ns> exec <pod> -c wg-debianpodsysd -- ufw status numbered`
+      render: shell
+
+  - type: textarea
+    id: podstate
+    attributes:
+      label: Pod events
+      description: "`kubectl -n <ns> describe pod <pod>` — the Events section is usually enough"
+      render: shell

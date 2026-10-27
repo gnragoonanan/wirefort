@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Keep the CI workflow's actions current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies
+      - ci
+
+  # The chart references container images in values.yaml rather than a
+  # Dockerfile, so Dependabot cannot track them. Pinning those images to
+  # digests and watching them is tracked as a known limitation in the README.
+  - package-ecosystem: docker
+    directory: "/ufw-wg-pods/wg-ufw"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    labels:
+      - dependencies
+      - images
+    open-pull-requests-limit: 5

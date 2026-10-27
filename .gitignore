@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Site-specific configuration — DO NOT COMMIT
+#
+# values.yaml in this repo is a sanitized example using documentation address
+# ranges. Keep your real addresses, VLANs, NFS server and credentials in a
+# local override that is never published.
+# ---------------------------------------------------------------------------
+values.yaml.working
+values.yaml.local
+my-values.yaml
+*-values.yaml
+values-*.yaml
+!values-example.yaml
+secrets.yaml
+*.secret.yaml
+
+# WireGuard keys, client configs and generated QR codes.
+# Never let these reach a public repository.
+*.key
+*.pem
+wg*.conf
+wg*.conf.bak
+*.conf.bak
+init.log
+
+# ---------------------------------------------------------------------------
+# Helm
+# ---------------------------------------------------------------------------
+*.tgz
+charts/*.tgz
+ufw-wg-pods/wg-ufw/charts/
+requirements.lock
+Chart.lock
+
+# ---------------------------------------------------------------------------
+# Backups and dead code (kept locally, not published)
+# ---------------------------------------------------------------------------
+*.bak
+*.bkup
+*.orig
+*.rej
+*.swp
+*.tmp
+*~
+
+# Exception: the pristine upstream copy of Nyr's installer is published on
+# purpose, so anyone can diff it against our derivative and see exactly what
+# changed. NOTICE references this path.
+!ufw-wg-pods/wireguard-install.sh.bkup
+
+# ---------------------------------------------------------------------------
+# macOS
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+
+# ---------------------------------------------------------------------------
+# Editors and IDEs
+# ---------------------------------------------------------------------------
+*.code-workspace
+.vscode/
+.idea/
+*.iml
+.project
+*.sublime-workspace
+
+# ---------------------------------------------------------------------------
+# Logs and local scratch
+# ---------------------------------------------------------------------------
+*.log
+scratch/
+tmp/
+.env
+.env.*

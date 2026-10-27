@@ -1,0 +1,210 @@
+# Default values for wg-ufw.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+#
+# ---------------------------------------------------------------------------
+# THESE ARE EXAMPLE VALUES. They will not work unmodified on your network.
+#
+# The addresses below use documentation ranges (RFC 5737 203.0.113.0/24 for the
+# public side, RFC 1918 for the internal sides). Replace every one of them, plus
+# the VLAN master interface names, with values that match your own topology.
+#
+# Start here:
+#   networks.macvlan.*        interfaces and addresses for the three attachments
+#   networks.defaultgw        default route for the external attachment
+#   podAnnotations            MUST mirror networks.macvlan.* -- see note below
+#   networks.dmz.*            the networks your peers are allowed to reach
+#   storage.volumes.nfsserver your NFS export
+#   env.wgui.WGUI_USERNAME/PASSWORD  change before exposing the UI
+# ---------------------------------------------------------------------------
+
+namespace: dmz
+
+replicaCount: 1
+
+containers:
+  main: wg-debianpodsysd
+  wgui: wireguard-ui
+
+image:
+  main: jrei/systemd-debian
+  wgui: ngoduykhanh/wireguard-ui
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  # NOTE: this tag is applied to image.main only. Pin both images to a digest
+  # for production use.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+env:
+  dnsname: dns
+  dnsvalue: 8.8.8.8, 8.8.4.4
+  inipname: inip
+  corpipname: corpip
+  exipname: exip
+  corpnetname: corpnet
+  boringtunname: boringtun_updates
+  boringtun: Y
+  wgui:
+    WGUI_MTU: 1500
+    WGUI_PERSISTENT_KEEPALIVE: 25
+    WGUI_FIREWALL_MARK: ""
+    # CHANGE THESE. Prefer moving them into a Secret and referencing it with
+    # valueFrom.secretKeyRef instead of plaintext values here.
+    WGUI_USERNAME: "admin"
+    WGUI_PASSWORD: "admin"
+    WGUI_MANAGE_START: true
+    WGUI_MANAGE_RESTART: true
+
+networks:
+  macvlan:
+    # External / public-facing attachment. Hosts the WireGuard endpoint.
+    extname: macvlan-ext
+    exip: 203.0.113.203
+    extnet: "203.0.113.0/24"
+    extif: vlan250
+    # Internal / DMZ attachment. Serves the wireguard-ui web interface.
+    intname: macvlan-int
+    inip: 10.20.248.203
+    inif: vlan5
+    innet: "10.20.248.0/23"
+    # Corporate attachment.
+    corpname: macvlan-corp
+    corpip: 10.30.207.203
+    corpnet: 10.30.207.0/24
+    corpif: vlan207
+  defaultgw: 203.0.113.1
+  wg:
+    name: wgnet
+    # Full VPN subnet. Used for the NAT MASQUERADE rule.
+    nw: 10.10.10.0/24
+    inip: 10.10.10.1/24
+    port: "51820"
+    wgifname: wgif
+    wgif: wg0
+    # Lower half of nw: staff / support engineers. Broad routing policy.
+    SE:
+      name: wgSEnet
+      nw: "10.10.10.0/25"
+    # Upper half of nw: customers / partners. Restricted routing policy.
+    customer:
+      name: wgcnet
+      nw: "10.10.10.128/25"
+  dmz:
+    # Destination network reachable by staff peers only.
+    SE:
+      name: SEdmznet
+      nw: "10.20.248.0/24"
+    # Destination network reachable by both peer zones.
+    customer:
+      name: customerdmznet
+      nw: "10.20.249.0/24"
+
+# IMPORTANT: Multus reads the attachment list from this annotation, which carries
+# its own copy of the addresses defined under networks.macvlan above. The two are
+# NOT linked -- if you change one without the other the pod will come up with
+# addresses that do not match its firewall rules. Keep them identical.
+podAnnotations:
+    k8s.v1.cni.cncf.io/networks: '[ {
+      "name": "macvlan-ext",
+      "ips": [ "203.0.113.203/24" ],
+      "default-route": ["203.0.113.1"] }, {
+      "name": "macvlan-int",
+      "ips": [ "10.20.248.203/23" ] }, {
+      "name": "macvlan-corp",
+      "ips": [ "10.30.207.203/24" ] } ]'
+
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Required: wg, iptables/ufw and systemd as PID 1 all need these.
+securityContext:
+  capabilities:
+    add:
+    - SYS_ADMIN
+#    - SYS_MODULE
+    - NET_ADMIN
+  privileged: true
+
+# NOTE: service, ingress and autoscaling below are Helm scaffolding leftovers.
+# No template in this chart consumes them today -- setting them has no effect.
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Generous defaults -- tune these down for small clusters.
+resources:
+  requests:
+    memory: "4Gi"
+    cpu: "2000m"
+  limits:
+    memory: "8Gi"
+    cpu: "4000m"
+
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+storage:
+  volumeMounts:
+    ncgroup: cgroup-host-path
+    mcgroup: /sys/fs/cgroup
+    nwg: wg
+    mwg: /etc/wireguard/
+    nwguidb: wguidb
+    mwguidb: /app/db
+    nconfig: init
+    mconfig: /etc/wireguard/config
+  volumes:
+    ncgroup: cgroup-host-path
+    mcgroup: /sys/fs/cgroup
+    nwg: wg
+    mwg: /opt/extension/wg
+    nwguidb: wguidb
+    mwguidb: /opt/extension/wg
+    nconfig: init
+    mconfig: /opt/extension/config
+    # The export generally needs no_root_squash so the installer can chmod 600
+    # wg0.conf. It holds the server private key -- use a restricted export.
+    nfspath: /nfs/wg
+    nfsserver: 10.30.207.116
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

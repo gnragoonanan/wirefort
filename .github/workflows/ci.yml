@@ -1,0 +1,211 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CHART_PATH: ufw-wg-pods/wg-ufw
+  HELM_VERSION: v3.16.2
+  KUBECONFORM_VERSION: v0.6.7
+
+jobs:
+  chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: helm lint
+        run: helm lint "$CHART_PATH"
+
+      - name: Render with default values
+        run: helm template ci "$CHART_PATH" > /tmp/rendered.yaml
+
+      - name: Render with overrides
+        run: |
+          helm template ci "$CHART_PATH" \
+            --set namespace=test-ns \
+            --set networks.wg.port=51821 \
+            --set env.wgui.WGUI_USERNAME=ci \
+            > /dev/null
+
+      - name: Check expected objects are present
+        run: |
+          set -uo pipefail
+          fail=0
+          check() {
+            if grep -q "$1" /tmp/rendered.yaml; then
+              echo "  ok      $2"
+            else
+              echo "::error::rendered manifest is missing $2"; fail=1
+            fi
+          }
+          check "^kind: Namespace"                  "Namespace"
+          check "^kind: ConfigMap"                  "script ConfigMap"
+          check "^kind: Pod"                        "gateway Pod"
+          check "kind: NetworkAttachmentDefinition" "NetworkAttachmentDefinitions"
+
+          nad=$(grep -c "kind: NetworkAttachmentDefinition" /tmp/rendered.yaml || true)
+          if [ "$nad" = "3" ]; then
+            echo "  ok      exactly 3 NetworkAttachmentDefinitions"
+          else
+            echo "::error::expected 3 NetworkAttachmentDefinitions, found $nad"; fail=1
+          fi
+
+          # The ConfigMap must carry both startup scripts, or the pod boots into
+          # a postStart hook that cannot find init.sh.
+          check "init.sh:"        "init.sh in the ConfigMap"
+          check "wg-install.sh:"  "wg-install.sh in the ConfigMap"
+
+          exit "$fail"
+
+      - name: Validate rendered manifests against Kubernetes schemas
+        run: |
+          set -euo pipefail
+          curl -sSLo /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          # NetworkAttachmentDefinition is a CRD, so it has no upstream schema.
+          /tmp/kubeconform \
+            --summary \
+            --strict \
+            --ignore-missing-schemas \
+            /tmp/rendered.yaml
+
+      - name: helm package
+        run: helm package "$CHART_PATH" --destination /tmp/pkg
+
+      - name: Confirm site-specific overrides are not packaged
+        run: |
+          set -euo pipefail
+          tar -tzf /tmp/pkg/*.tgz | tee /tmp/contents.txt
+          if grep -qE 'values\.yaml\.(working|local)|my-values\.yaml|\.conf$|\.key$|\.pem$' /tmp/contents.txt; then
+            echo "::error::a local override or key material leaked into the chart archive"
+            exit 1
+          fi
+          echo "Chart archive is clean."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: /tmp/pkg/*.tgz
+
+  scripts:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check (bash -n)
+        run: |
+          set -uo pipefail
+          fail=0
+          while IFS= read -r f; do
+            if bash -n "$f" 2>/dev/null; then
+              echo "  ok   $f"
+            else
+              echo "::error file=$f::bash syntax error"
+              bash -n "$f" || true
+              fail=1
+            fi
+          done < <(find . -name '*.sh' -not -path './.git/*' | sort)
+          exit "$fail"
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # init.sh is ours and should stay clean at error severity.
+      - name: ShellCheck our own scripts
+        run: shellcheck --severity=error "$CHART_PATH/scripts/init.sh"
+
+      # wg-install.sh and the standalone installers are derivatives of
+      # Nyr/wireguard-install and carry inherited upstream findings. Reported
+      # for visibility, not enforced, so CI is not red on third-party code.
+      - name: ShellCheck derived installers (advisory)
+        continue-on-error: true
+        run: |
+          shellcheck --severity=warning \
+            "$CHART_PATH/scripts/wg-install.sh" \
+            ufw-wg-pods/wireguard-install-GR-mod.sh \
+            ufw-wg-pods/wireguard-install-env-auto.sh
+
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No committed macOS metadata
+        run: |
+          if find . -name '.DS_Store' -not -path './.git/*' | grep -q .; then
+            echo "::error::.DS_Store files are committed; they are covered by .gitignore"
+            find . -name '.DS_Store' -not -path './.git/*'
+            exit 1
+          fi
+          echo "No .DS_Store files."
+
+      - name: No key material or client configs tracked
+        run: |
+          if git ls-files | grep -E '\.(key|pem)$|wg[0-9]*\.conf$'; then
+            echo "::error::key material or a WireGuard config is tracked in git"
+            exit 1
+          fi
+          echo "No key material tracked."
+
+      - name: No private keys in tracked file contents
+        run: |
+          if git grep -nE '^[[:space:]]*(PrivateKey|PresharedKey)[[:space:]]*=' -- .; then
+            echo "::error::a WireGuard private or preshared key appears in tracked content"
+            exit 1
+          fi
+          echo "No inline key material."
+
+      # The sanitized values.yaml must stay free of real infrastructure. Public
+      # addresses here would mean a site-specific config was committed by mistake.
+      - name: values.yaml uses documentation address ranges only
+        run: |
+          set -uo pipefail
+          bad=$(grep -nE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$CHART_PATH/values.yaml" \
+                | grep -vE '10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|203\.0\.113\.|198\.51\.100\.|192\.0\.2\.|8\.8\.(8\.8|4\.4)|0\.0\.0\.0' \
+                || true)
+          if [ -n "$bad" ]; then
+            echo "::error::values.yaml contains addresses outside RFC 1918 / RFC 5737 documentation ranges"
+            echo "$bad"
+            exit 1
+          fi
+          echo "values.yaml addresses are all private or documentation ranges."
+
+      - name: Required community files exist
+        run: |
+          set -uo pipefail
+          fail=0
+          for f in README.md LICENSE NOTICE CONTRIBUTING.md SECURITY.md \
+                   CODE_OF_CONDUCT.md CHANGELOG.md .gitignore; do
+            if [ -f "$f" ]; then echo "  ok      $f"; else echo "::error::missing $f"; fail=1; fi
+          done
+          exit "$fail"
+
+      - name: README images resolve
+        run: |
+          set -uo pipefail
+          fail=0
+          while IFS= read -r p; do
+            case "$p" in http*) continue ;; esac
+            if [ -e "$p" ]; then
+              echo "  ok      $p"
+            else
+              echo "::error::README references a missing image: $p"; fail=1
+            fi
+          done < <(grep -oE 'src="[^"]+"' README.md | sed 's/src="//;s/"$//')
+          exit "$fail"

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.containers.main }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  init.sh: {{ tpl (.Files.Get "scripts/init.sh") . | quote }}
+  wg-install.sh: {{ tpl (.Files.Get "scripts/wg-install.sh") . | quote }}

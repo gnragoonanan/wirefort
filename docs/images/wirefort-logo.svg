@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 230" width="880" height="230" role="img" aria-label="WireFort - fortified WireGuard for Kubernetes">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="55%" stop-color="#101b2e"/>
+      <stop offset="100%" stop-color="#0a1a1a"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3ddc97"/>
+      <stop offset="100%" stop-color="#1f9d6b"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#d6f5e8"/>
+      <stop offset="100%" stop-color="#7ee0b6"/>
+    </linearGradient>
+    <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3ddc97" stop-opacity="0"/>
+      <stop offset="25%" stop-color="#3ddc97" stop-opacity=".9"/>
+      <stop offset="75%" stop-color="#58a6ff" stop-opacity=".9"/>
+      <stop offset="100%" stop-color="#58a6ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="880" height="230" rx="18" fill="url(#bg)"/>
+  <g stroke="#1b2b44" stroke-width="1" opacity=".55">
+    <path d="M0 58h880M0 115h880M0 172h880"/>
+    <path d="M176 0v230M352 0v230M528 0v230M704 0v230"/>
+  </g>
+  <path d="M40 196h800" stroke="url(#wire)" stroke-width="3" fill="none"/>
+
+  <g transform="translate(52 42)">
+    <path d="M70 0 136 22v58c0 44-28 78-66 96C32 158 4 124 4 80V22z" fill="url(#shield)" opacity=".16"/>
+    <path d="M70 0 136 22v58c0 44-28 78-66 96C32 158 4 124 4 80V22z" fill="none" stroke="url(#shield)" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="none" stroke="#3ddc97" stroke-width="5" stroke-linecap="round">
+      <path d="M34 74h18l10-20 16 44 10-24h18"/>
+    </g>
+    <g fill="#3ddc97">
+      <rect x="30" y="100" width="18" height="30" rx="3" opacity=".75"/>
+      <rect x="56" y="100" width="18" height="30" rx="3" opacity=".9"/>
+      <rect x="82" y="100" width="18" height="30" rx="3" opacity=".75"/>
+    </g>
+    <g fill="#3ddc97" opacity=".85">
+      <rect x="12" y="14" width="14" height="14" rx="2"/>
+      <rect x="54" y="4" width="14" height="14" rx="2"/>
+      <rect x="110" y="14" width="14" height="14" rx="2"/>
+    </g>
+  </g>
+
+  <text x="232" y="106" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="68" font-weight="700" fill="url(#word)" letter-spacing="-1">WireFort</text>
+  <text x="236" y="146" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="21" font-weight="600" fill="#8ab4f8" letter-spacing="3.5">WIREGUARD · WIREGUARD-UI · UFW</text>
+  <text x="236" y="178" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" fill="#9fb3c8">A self-contained, zone-aware VPN gateway pod for Kubernetes</text>
+
+  <g transform="translate(742 36)" fill="none" stroke="#58a6ff" stroke-width="3" opacity=".7">
+    <path d="M44 0 85 24v48L44 96 3 72V24z"/>
+    <path d="M44 24 65 36v24L44 72 23 60V36z" stroke="#3ddc97"/>
+    <path d="M44 0v24M85 24 65 36M85 72 65 60M44 96V72M3 72l20-12M3 24l20 12"/>
+  </g>
+</svg>

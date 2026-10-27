@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+  labels:
+    name: {{ .Values.namespace }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "wg-ufw.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  containers:
+######## Debian 11 container with systemd to install Wireguard and UFW #####
+  - name: {{ .Values.containers.main }}
+    image: {{ .Values.image.main }}:{{ .Values.image.tag }}
+    imagePullPolicy: {{ .Values.image.pullPolicy }}
+    env:
+    {{- with .Values.env }}
+      - name: {{ .dnsname }}
+        value: "{{ .dnsvalue }}"
+      - name: {{ .boringtunname }}
+        value: "{{ .boringtun }}"
+    {{- end }}
+      - name: {{ .Values.env.exipname }}
+        value: "{{ .Values.networks.macvlan.exip }}"
+      - name: {{ .Values.env.inipname }}
+        value: "{{ .Values.networks.macvlan.inip }}"
+      - name: {{ .Values.env.corpipname }}
+        value: "{{ .Values.networks.macvlan.corpip }}"
+      - name: {{ .Values.env.corpnetname }}
+        value: {{ .Values.networks.macvlan.corpnet }}
+      - name: port
+        value: "{{ .Values.networks.wg.port }}"
+      - name: {{ .Values.networks.wg.wgifname }}
+        value: {{ .Values.networks.wg.wgif }}
+      - name: {{ .Values.networks.dmz.customer.name }}
+        value: {{ .Values.networks.dmz.customer.nw }}
+      - name: {{ .Values.networks.dmz.SE.name }}
+        value: {{ .Values.networks.dmz.SE.nw }}
+      - name: {{ .Values.networks.wg.name }}
+        value: {{ .Values.networks.wg.nw }}
+      - name: {{ .Values.networks.wg.SE.name }}
+        value: {{ .Values.networks.wg.SE.nw }}
+      - name: {{ .Values.networks.wg.customer.name }}
+        value: {{ .Values.networks.wg.customer.nw }}
+    # use lifecycle to run scripts that are not linked to the pod entrypoint or command ... arg declarations
+    lifecycle:
+      # After starting debian systemd container, run install script from the configMap
+      postStart:
+        exec:
+          command:
+          - /bin/bash
+          - "-c" 
+          - .{{ .Values.storage.volumeMounts.mconfig }}/init.sh 
+      # Before killing pod remove wireguard config files
+      preStop:
+        exec:
+          command: ["/bin/bash","-c", "rm -rf /etc/wireguard/wg*"]
+    securityContext:
+      {{- toYaml .Values.securityContext | nindent 6 }}
+    resources:
+      {{- toYaml .Values.resources | nindent 6 }}
+    volumeMounts:
+    - name: {{ .Values.storage.volumeMounts.ncgroup }}
+      mountPath: {{ .Values.storage.volumeMounts.mcgroup }}
+      readOnly: true
+    - name: {{ .Values.storage.volumeMounts.nwg }}
+      mountPath: {{ .Values.storage.volumeMounts.mwg }}
+    - name: {{ .Values.storage.volumeMounts.nconfig }}
+      mountPath: {{ .Values.storage.volumeMounts.mconfig }}
+######## WG-GUI - wireguard-ui container #####
+  - name: {{ .Values.containers.wgui }}
+    image: {{ .Values.image.wgui }}
+    imagePullPolicy: {{ .Values.image.pullPolicy }}
+    env:
+      - name: WGUI_DNS
+        value: "{{ .Values.env.dnsvalue }}"
+      - name: WGUI_MTU
+        value: "{{ .Values.env.wgui.WGUI_MTU }}"
+      - name: WGUI_PERSISTENT_KEEPALIVE
+        value: "{{ .Values.env.wgui.WGUI_PERSISTENT_KEEPALIVE }}"
+      - name: WGUI_FIREWALL_MARK
+        value: {{ .Values.env.wgui.WGUI_FIREWALL_MARK }}
+      - name: WGUI_USERNAME
+        value: "{{ .Values.env.wgui.WGUI_USERNAME }}"
+      - name: WGUI_PASSWORD
+        value: "{{ .Values.env.wgui.WGUI_PASSWORD }}"
+      - name: WGUI_MANAGE_START
+        value: "{{ .Values.env.wgui.WGUI_MANAGE_START }}"
+      - name: WGUI_MANAGE_RESTART
+        value: "{{ .Values.env.wgui.WGUI_MANAGE_RESTART }}"
+      - name: WGUI_SERVER_INTERFACE_ADDRESSES
+        value: {{ .Values.networks.wg.inip }}
+      - name: WGUI_SERVER_LISTEN_PORT
+        value: "{{ .Values.networks.wg.port }}"
+    securityContext:
+      {{- toYaml .Values.securityContext | nindent 6 }}
+    volumeMounts:
+    - name: {{ .Values.storage.volumeMounts.ncgroup }}
+      mountPath: {{ .Values.storage.volumeMounts.mcgroup }}
+      readOnly: true
+    - name: {{ .Values.storage.volumeMounts.nwg }}
+      mountPath: {{ .Values.storage.volumeMounts.mwg }}
+    - name: {{ .Values.storage.volumeMounts.nwguidb }}
+      mountPath: {{ .Values.storage.volumeMounts.mwguidb }}
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /etc/wireguard/wg0.conf
+      initialDelaySeconds: 100
+      periodSeconds: 60
+######## Common Volume mounts 
+  volumes:
+  - name: {{ .Values.storage.volumes.ncgroup }}
+    hostPath:
+       path:  {{ .Values.storage.volumes.mcgroup }}
+       type: DirectoryOrCreate
+  - name: {{ .Values.storage.volumes.nwg }}
+    nfs:
+      server:  {{ .Values.storage.volumes.nfsserver }}
+      path:  {{ .Values.storage.volumes.nfspath }}
+  - name: {{ .Values.storage.volumes.nwguidb }}
+    nfs:
+      server:  {{ .Values.storage.volumes.nfsserver }}
+      path:  {{ .Values.storage.volumes.nfspath }}
+  - name: {{ .Values.storage.volumes.nconfig }}
+    configMap:
+      name: {{ .Values.containers.main }}-configmap
+      defaultMode: 0777

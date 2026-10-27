@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 880" width="1060" height="880" role="img" aria-label="WireFort architecture diagram">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#8ab4f8"/>
+    </marker>
+    <marker id="arrowg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#3ddc97"/>
+    </marker>
+    <marker id="arrowr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#f78166"/>
+    </marker>
+    <style>
+      .t  { font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#e6edf3; }
+      .h  { font-size:16px; font-weight:700; }
+      .h2 { font-size:14px; font-weight:700; }
+      .s  { font-size:12px; fill:#9fb3c8; }
+      .xs { font-size:11px; fill:#8b98a5; }
+      .lbl{ font-size:11px; font-weight:600; fill:#8ab4f8; }
+      .ok { font-size:11px; font-weight:600; fill:#3ddc97; }
+      .no { font-size:11px; font-weight:600; fill:#f78166; }
+      .box{ fill:#161b22; stroke:#30363d; stroke-width:1.5; }
+    </style>
+  </defs>
+
+  <rect width="1060" height="880" fill="url(#page)"/>
+  <text class="t h" x="30" y="38" font-size="20">WireFort — WireGuard + wireguard-ui + UFW in one Kubernetes pod</text>
+  <text class="t s" x="30" y="60">Chart: wg-ufw · example topology — every VLAN, address and subnet below is set in values.yaml</text>
+
+  <!-- ================= VPN peers ================= -->
+  <g>
+    <rect class="box" x="60" y="86" width="300" height="76" rx="10" stroke="#3ddc97"/>
+    <text class="t h2" x="78" y="112">Staff / SE peers</text>
+    <text class="t s" x="78" y="133">networks.wg.SE.nw = 10.10.10.0/25</text>
+    <text class="t xs" x="78" y="151">Broad access: both DMZs, corp, internet</text>
+
+    <rect class="box" x="400" y="86" width="320" height="76" rx="10" stroke="#f78166"/>
+    <text class="t h2" x="418" y="112">Customer / Partner peers</text>
+    <text class="t s" x="418" y="133">networks.wg.customer.nw = 10.10.10.128/25</text>
+    <text class="t xs" x="418" y="151">Restricted: partner DMZ + internet only</text>
+
+    <rect class="box" x="760" y="86" width="240" height="76" rx="10"/>
+    <text class="t h2" x="778" y="112">wireguard-ui operators</text>
+    <text class="t s" x="778" y="133">http://&lt;internal-ip&gt;:5000</text>
+    <text class="t xs" x="778" y="151">Create / revoke peers, scan QR codes</text>
+  </g>
+
+  <path d="M210 162v56" stroke="#3ddc97" stroke-width="2" marker-end="url(#arrowg)"/>
+  <path d="M560 162v56" stroke="#f78166" stroke-width="2" marker-end="url(#arrowr)"/>
+  <text class="t lbl" x="222" y="196">UDP 51820</text>
+  <text class="t lbl" x="572" y="196">UDP 51820</text>
+
+  <!-- ================= Node / macvlan ================= -->
+  <rect x="40" y="222" width="980" height="486" rx="14" fill="#0f1620" stroke="#21304a" stroke-width="1.5"/>
+  <text class="t h2" x="60" y="250">Kubernetes worker node — Multus CNI attaches three macvlan interfaces to the pod</text>
+
+  <g>
+    <rect class="box" x="60" y="266" width="210" height="68" rx="8" stroke="#3ddc97"/>
+    <text class="t h2" x="76" y="290">macvlan-ext</text>
+    <text class="t xs" x="76" y="309">master vlan250 · 203.0.113.203/24</text>
+    <text class="t xs" x="76" y="325">default route 203.0.113.1</text>
+
+    <rect class="box" x="290" y="266" width="210" height="68" rx="8"/>
+    <text class="t h2" x="306" y="290">macvlan-int</text>
+    <text class="t xs" x="306" y="309">master vlan5 · 10.20.248.203/23</text>
+    <text class="t xs" x="306" y="325">DMZ side, serves the web UI</text>
+
+    <rect class="box" x="520" y="266" width="210" height="68" rx="8"/>
+    <text class="t h2" x="536" y="290">macvlan-corp</text>
+    <text class="t xs" x="536" y="309">master vlan207 · 10.30.207.203/24</text>
+    <text class="t xs" x="536" y="325">Corporate side</text>
+
+    <rect class="box" x="750" y="266" width="250" height="68" rx="8" stroke="#8ab4f8"/>
+    <text class="t h2" x="766" y="290">NFS server</text>
+    <text class="t xs" x="766" y="309">storage.volumes.nfsserver:/nfs/wg</text>
+    <text class="t xs" x="766" y="325">Persists wireguard-ui DB (source of truth)</text>
+  </g>
+
+  <!-- ================= Pod ================= -->
+  <rect x="60" y="356" width="670" height="330" rx="12" fill="#121a26" stroke="#3d5a80" stroke-width="2"/>
+  <text class="t h2" x="80" y="382">Pod: wg-ufw   ·   namespace: dmz   ·   privileged, NET_ADMIN + SYS_ADMIN</text>
+
+  <!-- container 1 -->
+  <rect class="box" x="80" y="396" width="300" height="266" rx="10"/>
+  <text class="t h2" x="96" y="420">wg-debianpodsysd</text>
+  <text class="t xs" x="96" y="438">jrei/systemd-debian</text>
+  <g class="t s">
+    <text x="96" y="466">postStart → init.sh</text>
+    <text x="110" y="486" class="t xs">apt install iproute2, iptables, ufw, cron</text>
+    <text x="110" y="502" class="t xs">source wg-install.sh (non-interactive)</text>
+    <text x="110" y="518" class="t xs">generate wg0.conf + first peer</text>
+    <text x="96" y="546">UFW policy engine</text>
+    <text x="110" y="566" class="t xs">zone rules, NAT MASQUERADE,</text>
+    <text x="110" y="582" class="t xs">ip_forward via /etc/ufw/sysctl.conf</text>
+    <text x="96" y="610">systemd units</text>
+    <text x="110" y="628" class="t xs">wgui.path watches wg0.conf</text>
+    <text x="110" y="644" class="t xs">wg-quick@wg0 + weekly cron reset</text>
+  </g>
+
+  <!-- container 2 -->
+  <rect class="box" x="400" y="396" width="300" height="266" rx="10"/>
+  <text class="t h2" x="416" y="420">wireguard-ui</text>
+  <text class="t xs" x="416" y="438">ngoduykhanh/wireguard-ui</text>
+  <g class="t s">
+    <text x="416" y="466">Web admin on port 5000</text>
+    <text x="430" y="486" class="t xs">peer CRUD, QR codes, client .conf</text>
+    <text x="430" y="502" class="t xs">WGUI_* env from values.yaml</text>
+    <text x="416" y="530">Writes /etc/wireguard/wg0.conf</text>
+    <text x="430" y="550" class="t xs">shared NFS mount with container 1</text>
+    <text x="416" y="578">Liveness probe</text>
+    <text x="430" y="598" class="t xs">cat /etc/wireguard/wg0.conf</text>
+    <text x="416" y="626">State in /app/db</text>
+    <text x="430" y="644" class="t xs">survives pod restarts via NFS</text>
+  </g>
+
+  <!-- UI writes -> watcher -->
+  <path d="M400 536H380" stroke="#8ab4f8" stroke-width="2" marker-end="url(#arrow)"/>
+  <text class="t lbl" x="286" y="530">wg0.conf change</text>
+
+  <path d="M840 334v44h-110" stroke="#8ab4f8" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text class="t lbl" x="748" y="356">NFS mounts</text>
+
+  <text class="t xs" x="80" y="676">wgui.path fires wg0.sh → diffs wg0.conf against wg0.conf.bak → `wg set peer remove` / `wg addconf`. Peers change live, tunnels stay up.</text>
+
+  <!-- ================= Destinations ================= -->
+  <path d="M400 708v36" stroke="#8ab4f8" stroke-width="2" marker-end="url(#arrow)"/>
+  <text class="t h2" x="40" y="776">Routed destinations — enforced by `ufw route` rules (default policy: reject routed)</text>
+  <g>
+    <rect class="box" x="40" y="788" width="235" height="58" rx="8" stroke="#3ddc97"/>
+    <text class="t h2" x="56" y="810">SE DMZ</text>
+    <text class="t xs" x="56" y="829">10.20.248.0/24</text>
+    <text class="t ok" x="196" y="810">SE allow</text>
+    <text class="t no" x="186" y="829">partner reject</text>
+
+    <rect class="box" x="290" y="788" width="235" height="58" rx="8"/>
+    <text class="t h2" x="306" y="810">Customer DMZ</text>
+    <text class="t xs" x="306" y="829">10.20.249.0/24</text>
+    <text class="t ok" x="446" y="810">SE allow</text>
+    <text class="t ok" x="436" y="829">partner allow</text>
+
+    <rect class="box" x="540" y="788" width="235" height="58" rx="8" stroke="#f78166"/>
+    <text class="t h2" x="556" y="810">Corporate network</text>
+    <text class="t xs" x="556" y="829">10.30.207.0/24</text>
+    <text class="t ok" x="696" y="810">SE allow</text>
+    <text class="t no" x="686" y="829">partner reject</text>
+
+    <rect class="box" x="790" y="788" width="230" height="58" rx="8"/>
+    <text class="t h2" x="806" y="810">Internet (NAT)</text>
+    <text class="t xs" x="806" y="829">MASQUERADE from 10.10.10.0/24</text>
+    <text class="t ok" x="936" y="820">both allow</text>
+  </g>
+</svg>

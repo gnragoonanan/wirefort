@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/gnragoonanan/wirefort/security/advisories/new
+    about: Do not open a public issue. Report privately through a security advisory — see SECURITY.md.
+  - name: Upstream wireguard-ui issues
+    url: https://github.com/ngoduykhanh/wireguard-ui/issues
+    about: Problems with the web interface itself belong upstream with Khanh Ngo's project.
+  - name: Upstream wireguard-install issues
+    url: https://github.com/Nyr/wireguard-install/issues
+    about: For the original installer. Note our copy is a modified derivative, so test against upstream first.
+  - name: WireGuard documentation
+    url: https://www.wireguard.com/quickstart/
+    about: General WireGuard protocol and tooling questions.

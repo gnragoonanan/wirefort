@@ -1,0 +1,44 @@
+-------------------------------------------------------------------------------------------------------------------------------
+### Helm package so use >> helm install <user-release-name> ./<directory of helm files> --debug
+### To uninstall use    >> helm uninstall <user-release-name>
+### --- If there is an issue to manually setup environment please run and follow instructions from below using the GUI as the main configuration portal:
+kubectl exec -it pods/{{ .Release.Name }} -c wg-debianpodsysd -- /bin/bash .{{ .Values.storage.volumeMounts.mconfig }}/init.sh
+-------------------------------------------------------------------------------------------------------------------------------
+1. POD interfaces are:
+Namespace: {{ .Values.namespace }}
+{{- with .Values.networks }}
+External:
+  Name:       {{ .macvlan.extname }}
+  Interface:  {{ .macvlan.extif }}
+  IP:         {{ .macvlan.exip }}
+  Network:    {{ .macvlan.extnet }}
+  default-gw: {{ .defaultgw }}
+Internal:
+  Name:       {{ .macvlan.intname }}
+  Interface:  {{ .macvlan.inif }}
+  IP:         {{ .macvlan.inip }}
+  Network:    {{ .macvlan.innet }}
+Corporate:
+  Name:       {{ .macvlan.corpname }}
+  Interface:  {{ .macvlan.corpif }}
+  IP:         {{ .macvlan.corpip }}
+  Network:    {{ .macvlan.corpnet }}
+{{- end }}
+---
+2. WireGuard configurations:
+Public Endpoint:  {{ .Values.networks.macvlan.exip }}:{{ .Values.networks.wg.port }}
+Interface:        {{ .Values.networks.wg.wgif }}
+VPN private nw:   {{ .Values.networks.wg.nw }}
+SE VPN nw:        {{ .Values.networks.wg.SE.nw }}
+Customer VPN nw:  {{ .Values.networks.wg.customer.nw }}
+NFS server:       {{ .Values.storage.volumes.nfsserver }}
+NFS path:         {{ .Values.storage.volumes.nfspath }}
+---
+3. WireGuard GUI URL at:
+http://{{ .Values.networks.macvlan.inip }}:5000
+Default USERNAME: {{ .Values.env.wgui.WGUI_USERNAME }}
+Default PASSWORD: {{ .Values.env.wgui.WGUI_PASSWORD }}
+-------------------------------------------------------------------------------------------------------------------------------
+### Expected behaviour: The pod will seem like stuck in ContainerCreating for minutes while packages and configurations load. 
+### Then the GUI container will load and thee pod will be in Running state.
+-------------------------------------------------------------------------------------------------------------------------------

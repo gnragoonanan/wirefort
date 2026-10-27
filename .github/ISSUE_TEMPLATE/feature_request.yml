@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest an improvement to the chart, scripts or firewall model
+title: "[feat] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The README has a **Known limitations** section listing rough edges that
+        are already acknowledged. If your idea is one of those, please say so —
+        a +1 on a known gap is useful signal and helps prioritise.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the operational situation, not just the proposed change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - Chart templates / values structure
+        - Firewall and routing policy
+        - Peer lifecycle automation
+        - Networking (Multus, macvlan, alternatives)
+        - Persistence (PVC support, alternatives to NFS)
+        - Image hardening / pre-baked image
+        - Secrets handling
+        - Observability
+        - CI / release automation
+        - Documentation
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: known
+    attributes:
+      label: Is this already a known limitation?
+      options:
+        - label: Yes, this is listed in the README's Known limitations section
+        - label: This would be a breaking change to values.yaml
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
